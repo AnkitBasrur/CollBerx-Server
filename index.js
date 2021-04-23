@@ -4,6 +4,7 @@ const app = express();
 const io = require("socket.io")(5000);
 const userFunc = require('./functions/user')
 const Room = require('./schema/Room')
+require('dotenv').config();
 
 
 var cors = require('cors');
@@ -20,10 +21,10 @@ mongoose.connect(uri, {
 
 const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 function generateString(length) {
-    let result = ' ';
+    let result = '';
     const charactersLength = characters.length;
     for ( let i = 0; i < length; i++ ) {
-        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        result += characters.charAt(Math.floor(Math.random()*charactersLength));
     }
     return result;
 }
@@ -42,30 +43,37 @@ io.on("connection", (socket) => {
     const roomID = generateString(9)
     const room = new Room({ roomID, password, owner })
     await room.save();
-    socket.join(roomID);
-    var sockets = io.in(roomID);   
+    await socket.join(roomID);
+    var sockets = io.in(roomID);  
+    console.log(sockets.adapter.rooms.get(roomID)) 
     io.to(roomID).emit('Hey',{msg:`${sockets.adapter.rooms.get(roomID).size} members there`});
   });
 
   socket.on('join', async(roomID, password ) =>  {
-    const room = await Room.findOne({ roomID });
     console.log(roomID, password)
+    const room = await Room.findOne({ roomID });
     if(!room)
       io.emit("Hey", {msg: "Incorrect room code"})
     else if(password !== room.password)
       io.emit('Hey', {msg: "Incorrect password"})
     else{
-      socket.join(room);
-      var sockets = io.in(room);   
+      await socket.join(roomID);
+      var sockets = io.in(roomID);   
       console.log(sockets.adapter.rooms.get(roomID))
-      io.to(room).emit('Hey',{msg:`${sockets.adapter.rooms.get(room).size} members there`});
+      io.to(roomID).emit('Hey',{msg: "Success"});
     }
   });
 
+  socket.on('getData', async(roomID) => {
+    console.log(roomID)
+    var sockets = io.in(room);   
+    console.log(sockets.adapter.rooms.get(roomID))
+    io.emit("Hey", {msg: "Incorrect room code"})
+  })
   socket.on('leave', async(room) => {
     await socket.leave(room);
     var sockets = io.in(room);   
-    io.to(room).emit('Hey',{msg:`${sockets.adapter.rooms.get(room).size} members there`});
+    io.to(room).emit('Hey',{msg: "Success"});
   })
 });
 

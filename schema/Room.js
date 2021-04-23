@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const TaskSchema = mongoose.Schema({
     taskID: {
         type: 'string',
-        required: true,
-        unique: true
+        required: true
     },
     name: {
         type: 'string',
@@ -16,13 +15,12 @@ const TaskSchema = mongoose.Schema({
     createdBy: {
         type: 'string'
     }
-})
+}, {_id: false})
 
 const CompletedTaskSchema = mongoose.Schema({
     taskID: {
         type: 'string',
-        required: true,
-        unique: true
+        required: true
     },
     name: {
         type: 'string',
@@ -37,7 +35,7 @@ const CompletedTaskSchema = mongoose.Schema({
     completedAt: {
         type: Date
     }
-})
+}, {_id: false})
 
 const RoomSchema = mongoose.Schema({
     roomID: {
