@@ -45,12 +45,10 @@ io.on("connection", (socket) => {
     await room.save();
     await socket.join(roomID);
     var sockets = io.in(roomID);  
-    console.log(sockets.adapter.rooms.get(roomID)) 
-    io.to(roomID).emit('Hey',{msg:`${sockets.adapter.rooms.get(roomID).size} members there`});
+    io.emit("Hey", {msg: "Success", activeUsers: 1, roomID })
   });
 
   socket.on('join', async(roomID, password ) =>  {
-    console.log(roomID, password)
     const room = await Room.findOne({ roomID });
     if(!room)
       io.emit("Hey", {msg: "Incorrect room code"})
@@ -59,21 +57,25 @@ io.on("connection", (socket) => {
     else{
       await socket.join(roomID);
       var sockets = io.in(roomID);   
-      console.log(sockets.adapter.rooms.get(roomID))
-      io.to(roomID).emit('Hey',{msg: "Success"});
+      const activeUsers = sockets.adapter.rooms.get(roomID).size
+      io.emit("Hey", {msg: "Success", activeUsers})
     }
   });
 
   socket.on('getData', async(roomID) => {
-    console.log(roomID)
-    var sockets = io.in(room);   
-    console.log(sockets.adapter.rooms.get(roomID))
-    io.emit("Hey", {msg: "Incorrect room code"})
+    if(roomID){
+      var sockets = io.in(roomID);   
+      const activeUsers = sockets.adapter.rooms.get(roomID).size
+      io.emit("Hey", {msg: "Success", activeUsers})
+    }
+    else
+      io.emit("Hey", { activeUsers: "error"})
   })
   socket.on('leave', async(room) => {
     await socket.leave(room);
     var sockets = io.in(room);   
-    io.to(room).emit('Hey',{msg: "Success"});
+    const activeUsers = sockets.adapter.rooms.get(room).size
+    io.emit("Hey", {msg: "Success", activeUsers})
   })
 });
 
