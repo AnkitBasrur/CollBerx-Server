@@ -10,7 +10,7 @@ const TaskSchema = mongoose.Schema({
         required: true
     },
     createdAt: {
-        type: Date
+        type: String
     },
     createdBy: {
         type: 'string'
@@ -27,13 +27,13 @@ const CompletedTaskSchema = mongoose.Schema({
         required: true
     },
     createdAt: {
-        type: Date
+        type: String
     },
     createdBy: {
         type: 'string'
     },
     completedAt: {
-        type: Date
+        type: String
     }
 }, {_id: false})
 

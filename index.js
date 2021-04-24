@@ -81,3 +81,27 @@ io.on("connection", (socket) => {
 
 app.post('/login', userFunc)
 app.post('/signup', userFunc)
+
+app.post('/addData', async(req, res) => {
+  if(req.body.type === 'Pending'){
+    await Room.updateOne({ roomID: req.body.roomID }, 
+      {
+      $push: {
+        pending: { 
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy
+        }}}
+      )
+    const data = await Room.findOne({ roomID: req.body.roomID });
+    res.send({ data })
+  }
+})
+
+app.get('/getPendingData/:id', async (req, res) => {
+  const data = await Room.findOne({ roomID: req.params.id });
+  res.send({ data })
+})
+
+app.get('')
