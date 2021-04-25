@@ -58,7 +58,7 @@ io.on("connection", (socket) => {
       await socket.join(roomID);
       var sockets = io.in(roomID);   
       const activeUsers = sockets.adapter.rooms.get(roomID).size
-      io.emit("Hey", {msg: "Success", activeUsers})
+      io.emit("Hey", {msg: "Success", activeUsers, roomID})
     }
   });
 
@@ -97,6 +97,35 @@ app.post('/addData', async(req, res) => {
     const data = await Room.findOne({ roomID: req.body.roomID });
     res.send({ data })
   }
+  else if(req.body.type === 'Active'){
+    await Room.updateOne({ roomID: req.body.roomID }, 
+      {
+      $push: {
+        ongoing: { 
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy
+        }}}
+      )
+    const data = await Room.findOne({ roomID: req.body.roomID });
+    res.send({ data })
+  }
+  else{
+    await Room.updateOne({ roomID: req.body.roomID }, 
+      {
+      $push: {
+        finsished: { 
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy,
+          completedAt: req.body.completedAt
+        }}}
+      )
+    const data = await Room.findOne({ roomID: req.body.roomID });
+    res.send({ data })
+  }
 })
 
 app.get('/getPendingData/:id', async (req, res) => {
@@ -104,4 +133,75 @@ app.get('/getPendingData/:id', async (req, res) => {
   res.send({ data })
 })
 
-app.get('')
+app.post('/removeData', async (req, res) => {
+  if(req.body.type === "Pending"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        pending: {
+          taskID : req.body.taskID
+        }
+      }
+    })
+  }
+  else if (req.body.type === "Active"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        ongoing: {
+          taskID : req.body.taskID
+        }
+      }
+    })
+  }
+  else{
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        finsished: {
+          taskID : req.body.taskID
+        }
+      }
+    })
+  }
+
+  res.send();
+})
+
+app.post('/nextLevel', async (req, res) => {
+  if(req.body.type === "Pending"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        pending: {
+          taskID : req.body.taskID
+        }
+      },
+      $push: {
+        ongoing: {
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy
+        }
+      }
+    })
+    
+  }
+  else if(req.body.type === "Active"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        ongoing: {
+          taskID : req.body.taskID
+        }
+      },
+      $push: {
+        finsished: {
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy,
+          completedAt: req.body.completedAt
+        }
+      }
+    })
+    
+  }
+  res.send()
+})
