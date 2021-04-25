@@ -1,5 +1,19 @@
 const mongoose = require('mongoose');
 
+const ChatSchema = mongoose.Schema({
+    chatID: {
+        type: 'string',
+        required: true
+    },
+    text: {
+        type: 'string',
+        required: true
+    },
+    from: {
+        type: 'string',
+        required: true
+    }
+}, { _id: false })
 const TaskSchema = mongoose.Schema({
     taskID: {
         type: 'string',
@@ -53,7 +67,8 @@ const RoomSchema = mongoose.Schema({
     },
     pending: [TaskSchema],
     ongoing: [TaskSchema],
-    finsished: [CompletedTaskSchema]
+    finsished: [CompletedTaskSchema],
+    chat : [ChatSchema]
 })
 
 module.exports = mongoose.model('Room', RoomSchema)

@@ -71,11 +71,16 @@ io.on("connection", (socket) => {
     else
       io.emit("Hey", { activeUsers: "error"})
   })
+
   socket.on('leave', async(room) => {
     await socket.leave(room);
     var sockets = io.in(room);   
     const activeUsers = sockets.adapter.rooms.get(room).size
     io.emit("Hey", {msg: "Success", activeUsers})
+  })
+
+  socket.on("new data", async(data) => {
+    io.emit("new data from server", { data })
   })
 });
 
@@ -204,4 +209,13 @@ app.post('/nextLevel', async (req, res) => {
     
   }
   res.send()
+})
+
+app.post('/addChat', async (req, res) => {
+  await Room.updateOne({ roomID: req.body.id }, { 
+    $push: { 
+      chat: req.body
+    }
+  })
+  res.send();
 })
