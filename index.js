@@ -12,6 +12,7 @@ app.use(express.json());
 app.use(cors());
 
 const mongoose = require('mongoose');
+const User = require('./schema/User');
 
 const uri = process.env.MONGO_URL
 mongoose.connect(uri, {
@@ -39,24 +40,42 @@ app.listen(4000, () => {
 
 io.on("connection", (socket) => {
 
-  socket.on("create room", async(password, owner ) => {
+  socket.on("create room", async(password, owner, name ) => {
     const roomID = generateString(9)
-    const room = new Room({ roomID, password, owner })
+    const room = new Room({ roomID, password, owner, name })
+    await User.updateOne({ email: owner }, { 
+      $push: {
+        rooms: { 
+          designation: "Owner",
+          roomID, 
+          name
+        }
+      }
+    })
     await room.save();
     await socket.join(roomID);
-    var sockets = io.in(roomID);  
     io.emit("Hey", {msg: "Success", activeUsers: 1, roomID })
   });
 
-  socket.on('join', async(roomID, password ) =>  {
+  socket.on('join', async(roomID, password, email ) =>  {
     const room = await Room.findOne({ roomID });
+
     if(!room)
       io.emit("Hey", {msg: "Incorrect room code"})
     else if(password !== room.password)
       io.emit('Hey', {msg: "Incorrect password"})
     else{
       await socket.join(roomID);
-      var sockets = io.in(roomID);   
+      var sockets = io.in(roomID);
+      await User.updateOne({email }, {
+        $push: {
+          rooms: {
+            roomID, 
+            name: room.name,
+            designation: "Member"
+          }
+        }
+      })   
       const activeUsers = sockets.adapter.rooms.get(roomID).size
       io.emit("Hey", {msg: "Success", activeUsers, roomID})
     }
@@ -218,4 +237,9 @@ app.post('/addChat', async (req, res) => {
     }
   })
   res.send();
+})
+
+app.get('/getProjects/:email', async (req, res) => {
+  const user = await User.findOne({ email: req.params.email });
+  res.send(user.rooms)
 })
