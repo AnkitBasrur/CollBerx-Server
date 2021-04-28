@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 
+const MemberSchema = mongoose.Schema({
+    name: { 
+        type: 'string'
+    },
+    id: {
+        type: 'string'
+    },
+    authLevel: { type: 'string'}
+}, {_id: false})
+
 const ChatSchema = mongoose.Schema({
     chatID: {
         type: 'string',
@@ -69,6 +79,7 @@ const RoomSchema = mongoose.Schema({
         type: String,
         required: true
     },
+    members: [MemberSchema],
     pending: [TaskSchema],
     ongoing: [TaskSchema],
     finsished: [CompletedTaskSchema],

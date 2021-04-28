@@ -46,13 +46,31 @@ io.on("connection", (socket) => {
     await User.updateOne({ email: owner }, { 
       $push: {
         rooms: { 
-          designation: "Owner",
+          designation: "Level X",
           roomID, 
           name
         }
       }
     })
+    await User.updateOne({ email: owner, "rooms.roomID": roomID }, { 
+      $push: {
+        "rooms.$.members": { 
+          authLevel: "Level X",
+          id: owner, 
+          name: owner
+        }
+      }
+    })
     await room.save();
+    await Room.updateOne({ roomID }, { 
+      $push: {
+        members: { 
+          authLevel: "Level X",
+          id: owner, 
+          name: owner
+        }
+      }
+    })
     await socket.join(roomID);
     io.emit("Hey", {msg: "Success", activeUsers: 1, roomID })
   });
@@ -65,19 +83,36 @@ io.on("connection", (socket) => {
     else if(password !== room.password)
       io.emit('Hey', {msg: "Incorrect password"})
     else{
-      await socket.join(roomID);
-      var sockets = io.in(roomID);
-      await User.updateOne({email }, {
-        $push: {
-          rooms: {
-            roomID, 
-            name: room.name,
-            designation: "Member"
+      const isObjectPresent = room.members.find((member) => member.id === email);
+      if(!isObjectPresent){
+        await Room.updateOne({ roomID: roomID }, {
+          $push: {
+            members: {
+              name: email, 
+              id: email, 
+              authLevel: "Level Z"
+            }
           }
-        }
-      })   
-      const activeUsers = sockets.adapter.rooms.get(roomID).size
-      io.emit("Hey", {msg: "Success", activeUsers, roomID})
+        })
+        await socket.join(roomID);
+        var sockets = io.in(roomID);
+        await User.updateOne({email }, {
+          $push: {
+            rooms: {
+              roomID, 
+              name: room.name,
+              designation: "Member"
+            },
+            members: {
+              name: email,
+              id: email,
+              authLevel: "Level Z"
+            }
+          }
+        })   
+        const activeUsers = sockets.adapter.rooms.get(roomID).size
+        io.emit("Hey", {msg: "Success", activeUsers, roomID})
+      }
     }
   });
 
@@ -240,6 +275,17 @@ app.post('/addChat', async (req, res) => {
 })
 
 app.get('/getProjects/:email', async (req, res) => {
-  const user = await User.findOne({ email: req.params.email });
-  res.send(user.rooms)
+  const user = await User.findOne({ email: req.params.email })
+  var arr = [];
+  for(var i=0; i<user.rooms.length;i++){
+    arr[i] = user.rooms[i].roomID
+  }
+  const room = await Room.find({ roomID: arr }).lean();
+  console.log(room)
+  for(var i=0; i<room.length; i++){
+    room[i].data = await room[i].members.filter((user) => user.id === req.params.email)[0]
+  }
+
+  // console.log(currUser)
+  res.send(room)
 })

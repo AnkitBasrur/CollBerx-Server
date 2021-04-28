@@ -1,12 +1,23 @@
 const mongoose = require('mongoose');
 
+const MemberSchema = mongoose.Schema({
+    name: { 
+        type: 'string'
+    },
+    id: {
+        type: 'string'
+    },
+    authLevel: { type: 'string'}
+}, {_id: false})
+
 const RoomSchema = mongoose.Schema({
     roomID: {
         type: String,
         required: true
     },
     name: { type: String, required: true},
-    designation: { type: String, required: true}
+    designation: { type: String, required: true},
+    members: [MemberSchema]
 }, {_id: false })
 
 const UserSchema = mongoose.Schema({
