@@ -187,9 +187,11 @@ app.post('/addData', async(req, res) => {
   }
 })
 
-app.get('/getPendingData/:id', async (req, res) => {
-  const data = await Room.findOne({ roomID: req.params.id });
-  res.send({ data })
+app.get('/getPendingData/:id/:email', async (req, res) => {
+  const data = await Room.findOne({ roomID: req.params.id }).lean();
+  const user = await data.members.filter((member) => member.id === req.params.email)
+  data.authLevel = user.authLevel
+  res.send({ data, authLevel: user[0].authLevel})
 })
 
 app.post('/removeData', async (req, res) => {
@@ -277,15 +279,24 @@ app.post('/addChat', async (req, res) => {
 app.get('/getProjects/:email', async (req, res) => {
   const user = await User.findOne({ email: req.params.email })
   var arr = [];
+
   for(var i=0; i<user.rooms.length;i++){
     arr[i] = user.rooms[i].roomID
   }
   const room = await Room.find({ roomID: arr }).lean();
-  console.log(room)
+
   for(var i=0; i<room.length; i++){
     room[i].data = await room[i].members.filter((user) => user.id === req.params.email)[0]
   }
 
-  // console.log(currUser)
-  res.send(room)
+  res.send({room })
+})
+
+app.post('/changeAuth', async(req, res) => {
+  await Room.updateOne({ roomID: req.body.id, "members.id": req.body.user }, {
+    $set: {
+      "members.$.authLevel": req.body.level
+    }
+  })
+  res.send();
 })
