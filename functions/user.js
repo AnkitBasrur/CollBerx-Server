@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const express = require('express');
 const User = require('../schema/User')
-
+const Room = require('../schema/Room')
 const app = express();
 
 app.post('/signup', async (req, res) => {

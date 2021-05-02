@@ -152,3 +152,79 @@ app.post('/addChat', userFunc)
 app.get('/getProjects/:email', userFunc)
 
 app.post('/changeAuth', userFunc)
+
+app.post('/removeData', userFunc)
+
+app.post('/drag', async (req, res) => {
+  console.log(req.body)
+  if(req.body.source.droppableId === "Pending"){ 
+    var data = await Room.findOne({ roomID: req.body.id, "pending.taskID": req.body.draggableId })
+    data = data.pending.filter((curr) => curr.taskID === req.body.draggableId)
+
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        pending: {
+          taskID : req.body.draggableId
+        }
+      },
+      
+    })
+  }
+  else if(req.body.source.droppableId === "Active"){ 
+    var data = await Room.findOne({ roomID: req.body.id, "ongoing.taskID": req.body.draggableId })
+    data = data.ongoing.filter((curr) => curr.taskID === req.body.draggableId)
+
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        ongoing: {
+          taskID : req.body.draggableId
+        }
+      }
+    })
+  }
+  else{
+    var data = await Room.findOne({ roomID: req.body.id, "finsished.taskID": req.body.draggableId })
+    data = data.finsished.filter((curr) => curr.taskID === req.body.draggableId)
+
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        finsished: {
+          taskID : req.body.draggableId
+        }
+      }
+    })
+  }
+
+if(req.body.destination.droppableId === "Pending"){
+  await Room.updateOne({ roomID: req.body.id }, {
+    $push: {
+      pending:{
+        $each: [data[0]],
+        $position: req.body.destination.index
+      }
+    }
+  })
+}
+else if(req.body.destination.droppableId === "Active"){
+  await Room.updateOne({ roomID: req.body.id }, {
+    $push: {
+      ongoing:{
+        $each: [data[0]],
+        $position: req.body.destination.index
+      }
+    }
+  })
+}
+else{
+  await Room.updateOne({ roomID: req.body.id }, {
+    $push: {
+      finsished:{
+        $each: [data[0]],
+        $position: req.body.destination.index
+      }
+    }
+  })
+}
+
+    res.send()
+})
