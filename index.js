@@ -35,6 +35,7 @@ function generateString(length) {
 }
 
 app.get('/', (req, res) => { res.send('Hello from Express!')})
+app.get('/check', (req, res) => { res.send('Hello check success!')})
 
 io.on("connection", (socket) => {
 
