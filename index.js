@@ -6,9 +6,7 @@ const io = require('socket.io')(server)
     server.listen(process.env.PORT || 3000, () => {
   console.log(`Server started: http://localhost:3000`)
 })
-const userFunc = require('./functions/user')
 const Room = require('./schema/Room')
-require('dotenv').config();
 
 
 var cors = require('cors');
@@ -18,7 +16,7 @@ app.use(cors());
 const mongoose = require('mongoose');
 const User = require('./schema/User');
 
-const uri = process.env.MONGO_URL
+const uri = "mongodb+srv://Ankit:ankit007@cluster0.nrn9d.mongodb.net/Task?authSource=admin&replicaSet=atlas-d7vrff-shard-0&w=majority&readPreference=primary&appname=MongoDB%20Compass&retryWrites=true&ssl=true"
 mongoose.connect(uri, {
     useNewUrlParser: true,
     useUnifiedTopology: true
@@ -151,21 +149,193 @@ app.post('/login', async (req, res) => {
           res.status(200).json({message: "Incorrect Password"});
   }
 })
-app.post('/signup', userFunc)
+app.post('/signup', async (req, res) => {
+  const {name, email, password} = req.body;
 
-app.post('/addData', userFunc)
+  try{
+      const user = new User({ name, email, password });
+      await user.save();
+      res.status(200).json({ message: "Success"});
+  }
+  catch(err){
+      res.status(200).json({ message: "Email already exists"});
+  }
+})
 
-app.get('/getPendingData/:id/:email', userFunc)
+app.post('/login', async (req, res) => {
+  const {email, password} = req.body;
 
-app.post('/nextLevel', userFunc)
+  const user = await User.findOne({ email });
 
-app.post('/addChat', userFunc)
+  if(!user)
+      res.status(200).send({message:"No email found"});
+  else{
+      if(password === user.password)
+          res.status(200).json({message: "Success"})
+      else
+          res.status(200).json({message: "Incorrect Password"});
+  }
+})
 
-app.get('/getProjects/:email', userFunc)
+app.post('/addData', async(req, res) => {
+  if(req.body.type === 'Pending'){
+    await Room.updateOne({ roomID: req.body.roomID }, 
+      {
+      $push: {
+        pending: { 
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy
+        }}}
+      )
+    const data = await Room.findOne({ roomID: req.body.roomID });
+    res.send({ data })
+  }
+  else if(req.body.type === 'Active'){
+    await Room.updateOne({ roomID: req.body.roomID }, 
+      {
+      $push: {
+        ongoing: { 
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy
+        }}}
+      )
+    const data = await Room.findOne({ roomID: req.body.roomID });
+    res.send({ data })
+  }
+  else{
+    await Room.updateOne({ roomID: req.body.roomID }, 
+      {
+      $push: {
+        finsished: { 
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy,
+          completedAt: req.body.completedAt
+        }}}
+      )
+    const data = await Room.findOne({ roomID: req.body.roomID });
+    res.send({ data })
+  }
+})
 
-app.post('/changeAuth', userFunc)
+app.get('/getPendingData/:id/:email', async (req, res) => {
+  const data = await Room.findOne({ roomID: req.params.id }).lean();
+  const user = await data.members.filter((member) => member.id === req.params.email)
+  data.authLevel = user.authLevel
+  res.send({ data, authLevel: user[0].authLevel})
+})
 
-app.post('/removeData', userFunc)
+app.post('/removeData', async (req, res) => {
+  if(req.body.type === "Pending"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        pending: {
+          taskID : req.body.taskID
+        }
+      }
+    })
+  }
+  else if (req.body.type === "Active"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        ongoing: {
+          taskID : req.body.taskID
+        }
+      }
+    })
+  }
+  else{
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        finsished: {
+          taskID : req.body.taskID
+        }
+      }
+    })
+  }
+
+  res.send();
+})
+
+app.post('/nextLevel', async (req, res) => {
+  if(req.body.type === "Pending"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        pending: {
+          taskID : req.body.taskID
+        }
+      },
+      $push: {
+        ongoing: {
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy
+        }
+      }
+    })
+    
+  }
+  else if(req.body.type === "Active"){
+    await Room.updateOne({ roomID: req.body.id }, {
+      $pull: {
+        ongoing: {
+          taskID : req.body.taskID
+        }
+      },
+      $push: {
+        finsished: {
+          taskID: req.body.taskID,
+          name: req.body.name,
+          createdAt: req.body.createdAt,
+          createdBy: req.body.createdBy,
+          completedAt: req.body.completedAt
+        }
+      }
+    })
+    
+  }
+  res.send()
+})
+
+app.post('/addChat', async (req, res) => {
+  await Room.updateOne({ roomID: req.body.id }, { 
+    $push: { 
+      chat: req.body
+    }
+  })
+  res.send();
+})
+
+app.get('/getProjects/:email', async (req, res) => {
+  const user = await User.findOne({ email: req.params.email })
+  var arr = [];
+
+  for(var i=0; i<user.rooms.length;i++){
+    arr[i] = user.rooms[i].roomID
+  }
+  const room = await Room.find({ roomID: arr }).lean();
+
+  for(var i=0; i<room.length; i++){
+    room[i].data = await room[i].members.filter((user) => user.id === req.params.email)[0]
+  }
+
+  res.send({room })
+})
+
+app.post('/changeAuth', async(req, res) => {
+  await Room.updateOne({ roomID: req.body.id, "members.id": req.body.user }, {
+    $set: {
+      "members.$.authLevel": req.body.level
+    }
+  })
+  res.send();
+})
 
 app.post('/drag', async (req, res) => {
 
