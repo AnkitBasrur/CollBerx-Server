@@ -1,7 +1,11 @@
 const express =  require('express')
 const httpServer = require("http").createServer();
-const app = express();
-const io = require("socket.io")(5000);
+const app = express()
+const server = require('http').Server(app)
+const io = require('socket.io')(server)
+server.listen(3000, () => {
+  console.log(`Server started: http://localhost:3000`)
+})
 const userFunc = require('./functions/user')
 const Room = require('./schema/Room')
 require('dotenv').config();
@@ -30,13 +34,6 @@ function generateString(length) {
     return result;
 }
 
-app.get('/', (req, res) => {
-    res.send('Hello World!')
-});
-
-app.listen(4000, () => {
-  console.log(`Example app listening on port 4000!`)
-});
 
 io.on("connection", (socket) => {
 
@@ -156,43 +153,36 @@ app.post('/changeAuth', userFunc)
 app.post('/removeData', userFunc)
 
 app.post('/drag', async (req, res) => {
-  console.log(req.body)
-  if(req.body.source.droppableId === "Pending"){ 
-    var data = await Room.findOne({ roomID: req.body.id, "pending.taskID": req.body.draggableId })
-    data = data.pending.filter((curr) => curr.taskID === req.body.draggableId)
 
-    await Room.updateOne({ roomID: req.body.id }, {
+  if(req.body.source.droppableId === "Pending"){ 
+    var data = await Room.findOneAndUpdate({ roomID: req.body.id }, {
       $pull: {
         pending: {
           taskID : req.body.draggableId
         }
-      },
-      
+      }
     })
+    data = data.pending.filter((curr) => curr.taskID === req.body.draggableId)
   }
   else if(req.body.source.droppableId === "Active"){ 
-    var data = await Room.findOne({ roomID: req.body.id, "ongoing.taskID": req.body.draggableId })
-    data = data.ongoing.filter((curr) => curr.taskID === req.body.draggableId)
-
-    await Room.updateOne({ roomID: req.body.id }, {
+    var data = await Room.findOneAndUpdate({ roomID: req.body.id }, {
       $pull: {
         ongoing: {
           taskID : req.body.draggableId
         }
       }
     })
+    data = data.ongoing.filter((curr) => curr.taskID === req.body.draggableId)
   }
   else{
-    var data = await Room.findOne({ roomID: req.body.id, "finsished.taskID": req.body.draggableId })
-    data = data.finsished.filter((curr) => curr.taskID === req.body.draggableId)
-
-    await Room.updateOne({ roomID: req.body.id }, {
+    var data = await Room.findOneAndUpdate({ roomID: req.body.id }, {
       $pull: {
         finsished: {
           taskID : req.body.draggableId
         }
       }
     })
+    data = data.finsished.filter((curr) => curr.taskID === req.body.draggableId)
   }
 
 if(req.body.destination.droppableId === "Pending"){
