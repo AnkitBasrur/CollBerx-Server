@@ -3,7 +3,7 @@ const httpServer = require("http").createServer();
 const app = express()
 const server = require('http').Server(app)
 const io = require('socket.io')(server)
-server.listen(3000, () => {
+    server.listen(3000, () => {
   console.log(`Server started: http://localhost:3000`)
 })
 const userFunc = require('./functions/user')
@@ -34,6 +34,7 @@ function generateString(length) {
     return result;
 }
 
+app.get('/', (req, res) => { res.send('Hello from Express!')})
 
 io.on("connection", (socket) => {
 
