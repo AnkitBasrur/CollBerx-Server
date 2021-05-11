@@ -1,22 +1,22 @@
 const express =  require('express')
-const httpServer = require("http").createServer();
 const app = express()
+app.use(express.json());
+var cors = require('cors');
+app.use(cors({origin: '*'}));
 const server = require('http').Server(app)
+const Room = require('./schema/Room')
+const httpServer = require("http").createServer();
+require('dotenv').config();
+
 const io = require('socket.io')(server)
-    server.listen(process.env.PORT || 3000, () => {
+
+server.listen(process.env.PORT || 3000, () => {
   console.log(`Server started: http://localhost:3000`)
 })
-const Room = require('./schema/Room')
-
-
-var cors = require('cors');
-app.use(express.json());
-app.use(cors());
-
 const mongoose = require('mongoose');
 const User = require('./schema/User');
 
-const uri = "mongodb+srv://Ankit:ankit007@cluster0.nrn9d.mongodb.net/Task?authSource=admin&replicaSet=atlas-d7vrff-shard-0&w=majority&readPreference=primary&appname=MongoDB%20Compass&retryWrites=true&ssl=true"
+const uri = process.env.MONGO_URL
 mongoose.connect(uri, {
     useNewUrlParser: true,
     useUnifiedTopology: true
