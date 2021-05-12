@@ -61,6 +61,13 @@ const CompletedTaskSchema = mongoose.Schema({
     }
 }, {_id: false})
 
+const BlockedUserSchema = mongoose.Schema({
+    userID: {
+        type: String,
+        required: true
+    }
+}, {_id: false })
+
 const RoomSchema = mongoose.Schema({
     roomID: {
         type: String,
@@ -80,6 +87,7 @@ const RoomSchema = mongoose.Schema({
         required: true
     },
     members: [MemberSchema],
+    blockedUser: [BlockedUserSchema],
     pending: [TaskSchema],
     ongoing: [TaskSchema],
     finsished: [CompletedTaskSchema],

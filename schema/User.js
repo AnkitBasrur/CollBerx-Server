@@ -1,15 +1,5 @@
 const mongoose = require('mongoose');
 
-const MemberSchema = mongoose.Schema({
-    name: { 
-        type: 'string'
-    },
-    id: {
-        type: 'string'
-    },
-    authLevel: { type: 'string'}
-}, {_id: false})
-
 const RoomSchema = mongoose.Schema({
     roomID: {
         type: String,
@@ -17,7 +7,13 @@ const RoomSchema = mongoose.Schema({
     },
     name: { type: String, required: true},
     designation: { type: String, required: true},
-    members: [MemberSchema]
+}, {_id: false })
+
+const BlockedRoomsSchema = mongoose.Schema({
+    roomID: {
+        type: String,
+        required: true
+    }
 }, {_id: false })
 
 const UserSchema = mongoose.Schema({
@@ -34,7 +30,8 @@ const UserSchema = mongoose.Schema({
         type: 'string',
         required: true
     },
-    rooms: [RoomSchema]
+    rooms: [RoomSchema],
+    blockedRooms: [BlockedRoomsSchema]
 })
 
 module.exports = mongoose.model('User', UserSchema);

@@ -49,15 +49,6 @@ io.on("connection", (socket) => {
         }
       }
     })
-    await User.updateOne({ email: owner, "rooms.roomID": roomID }, { 
-      $push: {
-        "rooms.$.members": { 
-          authLevel: "Level X",
-          id: owner, 
-          name: owner
-        }
-      }
-    })
     await room.save();
     await Room.updateOne({ roomID }, { 
       $push: {
@@ -74,13 +65,21 @@ io.on("connection", (socket) => {
 
   socket.on('join', async(roomID, password, email ) =>  {
     const room = await Room.findOne({ roomID });
-
     if(!room)
-      io.emit("Hey", {msg: "Incorrect room code"})
+      io.emit("Hey", {err: "Incorrect room code"})
     else if(password !== room.password)
-      io.emit('Hey', {msg: "Incorrect password"})
+      io.emit('Hey', {err: "Incorrect password"})
     else{
+      const isBlockedUser = room.blockedUser.find((member) => member.userID === email);
+      if(isBlockedUser){
+        io.emit('Hey', {err: "You have been barred from entering this room."});
+        return;
+      }
       const isObjectPresent = room.members.find((member) => member.id === email);
+      if(isObjectPresent){
+        io.emit('Hey', {err: "You are a member of this room."});
+        return;
+      }
       if(!isObjectPresent){
         await Room.updateOne({ roomID: roomID }, {
           $push: {
@@ -99,11 +98,6 @@ io.on("connection", (socket) => {
               roomID, 
               name: room.name,
               designation: "Member"
-            },
-            members: {
-              name: email,
-              id: email,
-              authLevel: "Level Z"
             }
           }
         })   
@@ -400,6 +394,30 @@ else{
     }
   })
 }
-
     res.send()
+})
+
+app.post('/blockUser/:userID/:roomID', async (req, res) => {
+  await Room.updateOne({ roomID: req.params.roomID }, { 
+    $push: {
+      blockedUser: {
+        userID: req.params.userID
+      }
+    },
+    $pull: {
+      members: {
+        id: req.params.userID
+      }
+    }
+  })
+
+  await User.updateOne({email: req.params.userID}, {
+    $pull: {
+      rooms: {
+        roomID: req.params.roomID
+      }
+    }
+  })
+  
+  res.send();
 })
