@@ -143,6 +143,7 @@ app.post('/login', async (req, res) => {
           res.status(200).json({message: "Incorrect Password"});
   }
 })
+
 app.post('/signup', async (req, res) => {
   const {name, email, password} = req.body;
 
@@ -156,33 +157,25 @@ app.post('/signup', async (req, res) => {
   }
 })
 
-app.post('/login', async (req, res) => {
-  const {email, password} = req.body;
-
-  const user = await User.findOne({ email });
-
-  if(!user)
-      res.status(200).send({message:"No email found"});
-  else{
-      if(password === user.password)
-          res.status(200).json({message: "Success"})
-      else
-          res.status(200).json({message: "Incorrect Password"});
-  }
-})
-
 app.post('/addData', async(req, res) => {
   if(req.body.type === 'Pending'){
-    await Room.updateOne({ roomID: req.body.roomID }, 
-      {
+    await Room.updateOne({ roomID: req.body.roomID }, {
       $push: {
         pending: { 
           taskID: req.body.taskID,
           name: req.body.name,
           createdAt: req.body.createdAt,
           createdBy: req.body.createdBy
-        }}}
+        },
+        logs: {
+          name: `Added task ${req.body.name} in Pending`,
+          date: req.body.createdAt,
+          from: req.body.createdBy
+        }
+      }
+      }
       )
+
     const data = await Room.findOne({ roomID: req.body.roomID });
     res.send({ data })
   }
@@ -195,7 +188,14 @@ app.post('/addData', async(req, res) => {
           name: req.body.name,
           createdAt: req.body.createdAt,
           createdBy: req.body.createdBy
-        }}}
+        },
+        logs: {
+          name: `Added task ${req.body.name} in Active`,
+          date: req.body.createdAt,
+          from: req.body.createdBy
+        }
+      }
+      }
       )
     const data = await Room.findOne({ roomID: req.body.roomID });
     res.send({ data })
@@ -210,7 +210,14 @@ app.post('/addData', async(req, res) => {
           createdAt: req.body.createdAt,
           createdBy: req.body.createdBy,
           completedAt: req.body.completedAt
-        }}}
+        },
+        logs: {
+          name: `Added task ${req.body.name} in Completed`,
+          date: req.body.createdAt,
+          from: req.body.createdBy
+        }
+      }
+      }
       )
     const data = await Room.findOne({ roomID: req.body.roomID });
     res.send({ data })
@@ -231,6 +238,13 @@ app.post('/removeData', async (req, res) => {
         pending: {
           taskID : req.body.taskID
         }
+      },
+      $push: {
+        logs: {
+          name: `Removed task ${req.body.name} from Pending`,
+          date: req.body.date,
+          from: req.body.userID
+        }
       }
     })
   }
@@ -240,6 +254,13 @@ app.post('/removeData', async (req, res) => {
         ongoing: {
           taskID : req.body.taskID
         }
+      },
+      $push: {
+        logs: {
+          name: `Removed task ${req.body.name} from Active`,
+          date: req.body.date,
+          from: req.body.userID
+        }
       }
     })
   }
@@ -248,6 +269,13 @@ app.post('/removeData', async (req, res) => {
       $pull: {
         finsished: {
           taskID : req.body.taskID
+        }
+      },
+      $push: {
+        logs: {
+          name: `Removed task ${req.body.name} from Completed`,
+          date: req.body.date,
+          from: req.body.userID
         }
       }
     })
@@ -270,6 +298,11 @@ app.post('/nextLevel', async (req, res) => {
           name: req.body.name,
           createdAt: req.body.createdAt,
           createdBy: req.body.createdBy
+        },
+        logs: {
+          name: `Moved ${req.body.name} from Pending to Active task`,
+          date: req.body.createdAt,
+          from: req.body.createdBy
         }
       }
     })
@@ -289,6 +322,11 @@ app.post('/nextLevel', async (req, res) => {
           createdAt: req.body.createdAt,
           createdBy: req.body.createdBy,
           completedAt: req.body.completedAt
+        },
+        logs: {
+          name: `Moved ${req.body.name} from Active to Completed task`,
+          date: req.body.createdAt,
+          from: req.body.createdBy
         }
       }
     })
@@ -326,6 +364,13 @@ app.post('/changeAuth', async(req, res) => {
   await Room.updateOne({ roomID: req.body.id, "members.id": req.body.user }, {
     $set: {
       "members.$.authLevel": req.body.level
+    },
+    $push: {
+      logs: {
+        name: `Changed Auth Level of ${req.body.user} to ${req.body.level}`,
+        date: req.body.date,
+        from: req.body.from
+      }
     }
   })
   res.send();
@@ -370,6 +415,11 @@ if(req.body.destination.droppableId === "Pending"){
       pending:{
         $each: [data[0]],
         $position: req.body.destination.index
+      },
+      logs: {
+        name: `Drag ${data[0].name} from ${req.body.source.droppableId} to ${req.body.destination.droppableId} task`,
+        date: req.body.date,
+        from: req.body.from
       }
     }
   })
@@ -380,6 +430,11 @@ else if(req.body.destination.droppableId === "Active"){
       ongoing:{
         $each: [data[0]],
         $position: req.body.destination.index
+      },
+      logs: {
+        name: `Drag ${data[0].name} from ${req.body.source.droppableId} to ${req.body.destination.droppableId} task`,
+        date: req.body.date,
+        from: req.body.from
       }
     }
   })
@@ -390,6 +445,11 @@ else{
       finsished:{
         $each: [data[0]],
         $position: req.body.destination.index
+      },
+      logs: {
+        name: `Drag ${data[0].name} from ${req.body.source.droppableId} to ${req.body.destination.droppableId} task`,
+        date: req.body.date,
+        from: req.body.from
       }
     }
   })
@@ -402,6 +462,11 @@ app.post('/blockUser/:userID/:roomID', async (req, res) => {
     $push: {
       blockedUser: {
         userID: req.params.userID
+      },
+      logs: {
+        name: `Blocked ${req.params.userID}`,
+        date: req.body.date,
+        from: req.body.from
       }
     },
     $pull: {

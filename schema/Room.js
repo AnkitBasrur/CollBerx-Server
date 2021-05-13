@@ -61,6 +61,19 @@ const CompletedTaskSchema = mongoose.Schema({
     }
 }, {_id: false})
 
+const logSchema = mongoose.Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    from: {
+        type: String
+    },
+    date: {
+        type: 'string'
+    }
+}, {_id: false})
+
 const BlockedUserSchema = mongoose.Schema({
     userID: {
         type: String,
@@ -91,7 +104,8 @@ const RoomSchema = mongoose.Schema({
     pending: [TaskSchema],
     ongoing: [TaskSchema],
     finsished: [CompletedTaskSchema],
-    chat : [ChatSchema]
+    chat : [ChatSchema],
+    logs: [logSchema]
 })
 
 module.exports = mongoose.model('Room', RoomSchema)
