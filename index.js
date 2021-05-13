@@ -16,7 +16,7 @@ server.listen(process.env.PORT || 3000, () => {
 const mongoose = require('mongoose');
 const User = require('./schema/User');
 
-const uri = process.env.MONGO_URL
+const uri = "mongodb+srv://Ankit:ankit007@cluster0.nrn9d.mongodb.net/Task?authSource=admin&replicaSet=atlas-d7vrff-shard-0&w=majority&readPreference=primary&appname=MongoDB%20Compass&retryWrites=true&ssl=true"
 mongoose.connect(uri, {
     useNewUrlParser: true,
     useUnifiedTopology: true
