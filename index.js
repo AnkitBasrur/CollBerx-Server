@@ -50,12 +50,19 @@ io.on("connection", (socket) => {
       }
     })
     await room.save();
+    var dt = new Date();
+    var date = dt.getDate() + "/" + (dt.getMonth() + 1) + "/" + dt.getFullYear();
     await Room.updateOne({ roomID }, { 
       $push: {
         members: { 
           authLevel: "Level X",
           id: owner, 
           name: owner
+        },
+        logs: {
+          name: `Created Room by ${owner}`,
+          date,
+          from: owner
         }
       }
     })
@@ -80,13 +87,21 @@ io.on("connection", (socket) => {
         io.emit('Hey', {err: "You are a member of this room."});
         return;
       }
+      
+      var dt = new Date();
+      var date = dt.getDate() + "/" + (dt.getMonth() + 1) + "/" + dt.getFullYear();
       if(!isObjectPresent){
-        await Room.updateOne({ roomID: roomID }, {
+        await Room.updateOne({ roomID }, {
           $push: {
             members: {
               name: email, 
               id: email, 
               authLevel: "Level Z"
+            },
+            logs: {
+              name: `${email} joined the Room`,
+              date,
+              from: email
             }
           }
         })
@@ -484,5 +499,30 @@ app.post('/blockUser/:userID/:roomID', async (req, res) => {
     }
   })
   
+  res.send();
+})
+app.post('/removeUser/:userID/:roomID', async (req, res) => {
+  await Room.updateOne({ roomID: req.params.roomID }, { 
+    $push: {
+      logs: {
+        name: `Removed ${req.params.userID}`,
+        date: req.body.date,
+        from: req.body.from
+      }
+    },
+    $pull: {
+      members: {
+        id: req.params.userID
+      }
+    }
+  })
+
+  await User.updateOne({email: req.params.userID}, {
+    $pull: {
+      rooms: {
+        roomID: req.params.roomID
+      }
+    }
+  })
   res.send();
 })
