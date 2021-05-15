@@ -21,12 +21,11 @@ app.post('/login', async (req, res) => {
     const {email, password} = req.body;
 
     const user = await User.findOne({ email });
-
     if(!user)
         res.status(200).send({message:"No email found"});
     else{
         if(password === user.password)
-            res.status(200).json({message: "Success"})
+            res.status(200).json({message: "Success", name: user.name})
         else
             res.status(200).json({message: "Incorrect Password"});
     }

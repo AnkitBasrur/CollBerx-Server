@@ -2,6 +2,7 @@ const express =  require('express')
 const app = express()
 app.use(express.json());
 var cors = require('cors');
+const nodemailer = require('nodemailer');
 app.use(cors({origin: '*'}));
 const server = require('http').Server(app)
 const Room = require('./schema/Room')
@@ -37,7 +38,7 @@ app.get('/check', (req, res) => { res.send('Hello check success!')})
 
 io.on("connection", (socket) => {
 
-  socket.on("create room", async(password, owner, name ) => {
+  socket.on("create room", async(password, owner, name, username ) => {
     const roomID = generateString(9)
     const room = new Room({ roomID, password, owner, name })
     await User.updateOne({ email: owner }, { 
@@ -57,12 +58,12 @@ io.on("connection", (socket) => {
         members: { 
           authLevel: "Level X",
           id: owner, 
-          name: owner
+          name: username
         },
         logs: {
-          name: `Created Room by ${owner}`,
+          name: `Created Room by ${username}`,
           date,
-          from: owner
+          from: username
         }
       }
     })
@@ -70,7 +71,7 @@ io.on("connection", (socket) => {
     io.emit("Hey", {msg: "Success", activeUsers: 1, roomID })
   });
 
-  socket.on('join', async(roomID, password, email ) =>  {
+  socket.on('join', async(roomID, password, email, name ) =>  {
     const room = await Room.findOne({ roomID });
     if(!room)
       io.emit("Hey", {err: "Incorrect room code"})
@@ -94,14 +95,14 @@ io.on("connection", (socket) => {
         await Room.updateOne({ roomID }, {
           $push: {
             members: {
-              name: email, 
+              name, 
               id: email, 
               authLevel: "Level Z"
             },
             logs: {
-              name: `${email} joined the Room`,
+              name: `${name} joined the Room`,
               date,
-              from: email
+              from: name
             }
           }
         })
@@ -153,7 +154,7 @@ app.post('/login', async (req, res) => {
       res.status(200).send({message:"No email found"});
   else{
       if(password === user.password)
-          res.status(200).json({message: "Success"})
+          res.status(200).json({message: "Success", name: user.name})
       else
           res.status(200).json({message: "Incorrect Password"});
   }
@@ -353,9 +354,43 @@ app.post('/nextLevel', async (req, res) => {
 app.post('/addChat', async (req, res) => {
   await Room.updateOne({ roomID: req.body.id }, { 
     $push: { 
-      chat: req.body
+      chat: {
+        from: req.body.fromName,
+        text: req.body.text,
+        chatID: req.body.chat,
+        priority: req.body.priority
+      }
     }
   })
+  if(req.body.priority === "High"){
+    var emails = [];
+    const room = await Room.findOne({ roomID: req.body.id });
+    emails.push(room.members.map((member) => member.id ))
+    emails = await emails[0].filter((member) => member !== req.body.fromEmail )
+    let transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD
+      }
+    });
+    let info = {
+      from: process.env.EMAIL, 
+      to: emails, 
+      subject: `Received Important Message from ${req.body.fromName} in ${room.name}`, 
+      text: "Hello world", 
+      html: `<div><p><b>You have recieived high priority message in ${room.name}.</b></p>
+      <div> <p><b>${req.body.fromName} : </b> ${req.body.text}</p>
+      To view the message <a href="https://collberx.vercel.app/">Click Here!</a>
+      </div>`, 
+    };
+    transporter.sendMail(info, (err,info) => {
+      if(err)
+        console.log(err);
+      else
+        res.status(200).send({ message: "success" })
+    })
+  }
   res.send();
 })
 

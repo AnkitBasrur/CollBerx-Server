@@ -22,6 +22,9 @@ const ChatSchema = mongoose.Schema({
     from: {
         type: 'string',
         required: true
+    },
+    priority: {
+        type: "string"
     }
 }, { _id: false })
 const TaskSchema = mongoose.Schema({
