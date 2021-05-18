@@ -87,8 +87,7 @@ const BlockedUserSchema = mongoose.Schema({
 const RoomSchema = mongoose.Schema({
     roomID: {
         type: String,
-        required: true,
-        unique: true
+        required: true
     },
     name: { 
         type: String,

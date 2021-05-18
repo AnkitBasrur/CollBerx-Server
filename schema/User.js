@@ -17,19 +17,18 @@ const BlockedRoomsSchema = mongoose.Schema({
 }, {_id: false })
 
 const UserSchema = mongoose.Schema({
-    email: {
+    username: {
         type: 'string',
-        required: true,
-        unique: true
-    },
+        required: true
+    },  
     name: {
         type: 'string',
         required: true
     },
     password: {
-        type: 'string',
-        required: true
+        type: 'string'
     },
+    isGitUser: { type: Boolean},
     rooms: [RoomSchema],
     blockedRooms: [BlockedRoomsSchema]
 })

@@ -49,9 +49,11 @@ app.get('/check', async(req, res) => {
   res.json({ data: data.data });
 })
 
-app.get('/get-repos/:name', async(req, res) => {
+app.get('/get-repos/:username/:name', async(req, res) => {
   var finalData = [];
-  const username = req.params.name;
+  const username = req.params.username;
+  const user = new User({ username, name: req.params.name, isGitUser: true });
+  await user.save();
 
   const data = await axios.get(`https://api.github.com/users/${username}/repos`, { headers: { authorization: `token ${access_token}`}})
 
@@ -62,27 +64,144 @@ app.get('/get-repos/:name', async(req, res) => {
       id: curr.id
   }))
 
-// console.log(data.data)
   for(var i=0;i<repos.length;i++){
     const authorsData = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}/stats/contributors?anon=1`, { headers: { authorization: `token ${access_token}`}})
-    var parentID = repos[i].id;
+    var sourceID = repos[i].id;
     
     if(repos[i].isForked === true){
       const fork = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}`, { headers: { authorization: `token ${access_token}`}})
-      parentID = fork.data.parent.id
-      console.log(fork.data)
+      sourceID = fork.data.source.id
+
+      const room = await Room.findOne({ roomID: sourceID });
+      if(room){
+        await User.updateOne({ username }, { 
+          $push: {
+            rooms: { 
+              designation: "Level Z",
+              roomID: sourceID, 
+              name: repos[i].name
+            }
+          }
+        })
+        var dt = new Date();
+        var date = dt.getDate() + "/" + (dt.getMonth() + 1) + "/" + dt.getFullYear();
+        await Room.updateOne({ roomID: sourceID }, { 
+          $push: {
+            members: { 
+              authLevel: "Level Z",
+              id: username, 
+              name: req.params.name
+            },
+            logs: {
+              name: `${username} joined the room`,
+              date,
+              from: username
+            }
+          }
+        })
+      }
+      else{
+        const roomID = sourceID
+        const room = new Room({ roomID, password: `${fork.data.source.owner.login}123`, owner: fork.data.source.owner.login, name: repos[i].name })
+        await User.updateOne({ username }, { 
+          $push: {
+            rooms: { 
+              designation: "Level Y",
+              roomID, 
+              name: repos[i].name
+            }
+          }
+        })
+        await room.save();
+        var dt = new Date();
+        var date = dt.getDate() + "/" + (dt.getMonth() + 1) + "/" + dt.getFullYear();
+        await Room.updateOne({ roomID }, { 
+          $push: {
+            members: { 
+              authLevel: "Level Y",
+              id: username, 
+              name: req.params.name
+            },
+            logs: {
+              name: `Created Room by ${username}`,
+              date,
+              from: username
+            }
+          }
+        })
+      }
+    }
+    else{
+      const roomID = sourceID
+      const room = await Room.findOne({ roomID });
+      if(room){
+        await User.updateOne({ username }, { 
+          $push: {
+            rooms: { 
+              designation: "Level X",
+              roomID, 
+              name: repos[i].name
+            }
+          }
+        })
+        var dt = new Date();
+        var date = dt.getDate() + "/" + (dt.getMonth() + 1) + "/" + dt.getFullYear();
+        await Room.updateOne({ roomID }, { 
+          $push: {
+            members: { 
+              authLevel: "Level X",
+              id: username, 
+              name: req.params.name
+            },
+            logs: {
+              name: `${username} joined the room`,
+              date,
+              from: username
+            }
+          }
+        })
+      }
+      else{
+        const room = new Room({ roomID, password: `${username}123`, owner: username, name: repos[i].name })
+        await User.updateOne({ username }, { 
+          $push: {
+            rooms: { 
+              designation: "Level X",
+              roomID, 
+              name: repos[i].name
+            }
+          }
+        })
+        await room.save();
+        var dt = new Date();
+        var date = dt.getDate() + "/" + (dt.getMonth() + 1) + "/" + dt.getFullYear();
+        await Room.updateOne({ roomID }, { 
+          $push: {
+            members: { 
+              authLevel: "Level X",
+              id: username, 
+              name: req.params.name
+            },
+            logs: {
+              name: `Created Room by ${username}`,
+              date,
+              from: username
+            }
+          }
+        })
+      }
     }
     var authors = [];
 
     if(authorsData.data.length > 0){
       authors.push(authorsData.data.map((curr) => curr.author.login));
-      finalData.push({authors: authors[0], repoName: repos[i].name, parentID })
+      finalData.push({authors: authors[0], repoName: repos[i].name, sourceID })
     }
     else{
       finalData.push({repoName: repos[i].name })
     }
   }
-  res.json({ finalData });
+  res.json({ finalData })
 })
 
 app.get('/oauth-callback', async(req, res) => {
@@ -102,15 +221,17 @@ app.get('/oauth-callback', async(req, res) => {
 });
 
 app.get('/success', function(req, res) {
-
   axios({
     method: 'get',
     url: `https://api.github.com/user`,
     headers: {
       Authorization: 'token ' + access_token
     }
-  }).then((response) => {
-    res.redirect(`/get-repos/${response.data.login}`);
+  }).then(async(response) => {
+    var name = response.data.name;
+    if(response.data.name == null)
+      name = response.data.login
+    res.redirect(`/get-repos/${response.data.login}/${name}`);
   })
 });
 
@@ -224,14 +345,14 @@ io.on("connection", (socket) => {
 });
 
 app.post('/login', async (req, res) => {
-  const {email, password} = req.body;
+  const {username, password} = req.body;
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ username });
 
   if(!user)
-      res.status(200).send({message:"No email found"});
+      res.status(200).send({message:"No username found"});
   else{
-      if(password === user.password)
+      if(password === user.password || password.length==0)
           res.status(200).json({message: "Success", name: user.name})
       else
           res.status(200).json({message: "Incorrect Password"});
@@ -239,10 +360,10 @@ app.post('/login', async (req, res) => {
 })
 
 app.post('/signup', async (req, res) => {
-  const {name, email, password} = req.body;
+  const {name, username, password} = req.body;
 
   try{
-      const user = new User({ name, email, password });
+      const user = new User({ name, username, password });
       await user.save();
       res.status(200).json({ message: "Success"});
   }
@@ -472,8 +593,8 @@ app.post('/addChat', async (req, res) => {
   res.send();
 })
 
-app.get('/getProjects/:email', async (req, res) => {
-  const user = await User.findOne({ email: req.params.email })
+app.get('/getProjects/:username', async (req, res) => {
+  const user = await User.findOne({ username: req.params.username })
   var arr = [];
 
   for(var i=0; i<user.rooms.length;i++){
@@ -482,7 +603,7 @@ app.get('/getProjects/:email', async (req, res) => {
   const room = await Room.find({ roomID: arr }).lean();
 
   for(var i=0; i<room.length; i++){
-    room[i].data = await room[i].members.filter((user) => user.id === req.params.email)[0]
+    room[i].data = await room[i].members.filter((user) => user.id === req.params.username)[0]
   }
 
   res.send({room })
