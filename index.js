@@ -40,8 +40,15 @@ function generateString(length) {
     return result;
 }
 
-app.get('/', async(req, res) => { 
-  res.redirect(`https://github.com/login/oauth/authorize?client_id=${client_id}`);
+app.get('/:code', async(req, res) => { 
+  const data = await axios({
+    method: 'post',
+    url: `https://github.com/login/oauth/access_token?client_id=${client_id}&client_secret=${secret_key}&code=${req.params.code}`,
+    headers: {
+        accept: 'application/json'
+    }
+  })
+  res.send({token: data.data.access_token})
 })
 
 app.get('/check', async(req, res) => {
@@ -49,13 +56,13 @@ app.get('/check', async(req, res) => {
   res.json({ data: data.data });
 })
 
-app.get('/get-repos/:username/:name', async(req, res) => {
+app.get('/get-repos/:username/:name/:token', async(req, res) => {
   var finalData = [];
   const username = req.params.username;
   const user = new User({ username, name: req.params.name, isGitUser: true });
   await user.save();
 
-  const data = await axios.get(`https://api.github.com/users/${username}/repos`, { headers: { authorization: `token ${access_token}`}})
+  const data = await axios.get(`https://api.github.com/users/${username}/repos`, { headers: { authorization: `token ${req.params.token}`}})
 
   var repos = [];
   repos = data.data.map(curr => ({
@@ -65,11 +72,11 @@ app.get('/get-repos/:username/:name', async(req, res) => {
   }))
 
   for(var i=0;i<repos.length;i++){
-    const authorsData = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}/stats/contributors?anon=1`, { headers: { authorization: `token ${access_token}`}})
+    const authorsData = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}/stats/contributors?anon=1`, { headers: { authorization: `token ${req.params.token}`}})
     var sourceID = repos[i].id;
     
     if(repos[i].isForked === true){
-      const fork = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}`, { headers: { authorization: `token ${access_token}`}})
+      const fork = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}`, { headers: { authorization: `token ${req.params.token}`}})
       sourceID = fork.data.source.id
 
       const room = await Room.findOne({ roomID: sourceID });
@@ -201,9 +208,12 @@ app.get('/get-repos/:username/:name', async(req, res) => {
       finalData.push({repoName: repos[i].name })
     }
   }
-  res.json({ finalData })
+  res.send({ finalData })
 })
 
+app.get('/access-token', (req, res) => {
+
+})
 app.get('/oauth-callback', async(req, res) => {
   const requestToken = req.query.code
   
@@ -234,6 +244,7 @@ app.get('/success', function(req, res) {
     res.redirect(`/get-repos/${response.data.login}/${name}`);
   })
 });
+
 
 io.on("connection", (socket) => {
 
@@ -594,6 +605,7 @@ app.post('/addChat', async (req, res) => {
 })
 
 app.get('/getProjects/:username', async (req, res) => {
+  // console.log(req.params.username)
   const user = await User.findOne({ username: req.params.username })
   var arr = [];
 
