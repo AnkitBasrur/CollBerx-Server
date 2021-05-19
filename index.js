@@ -28,8 +28,6 @@ mongoose.connect(uri, {
     useUnifiedTopology: true
 });
 
-var access_token = "";
-
 const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 function generateString(length) {
     let result = '';
@@ -40,15 +38,24 @@ function generateString(length) {
     return result;
 }
 
-app.get('/:code', async(req, res) => { 
-  const data = await axios({
-    method: 'post',
-    url: `https://github.com/login/oauth/access_token?client_id=${client_id}&client_secret=${secret_key}&code=${req.params.code}`,
-    headers: {
-        accept: 'application/json'
-    }
-  })
-  res.send({token: data.data.access_token})
+app.get('/', (req, res) => {
+  res.send('welcoms')
+})
+
+app.get('/access-token/:code', async(req, res) => { 
+  if(req.params.code){
+    const data = await axios({
+      method: 'post',
+      url: `https://github.com/login/oauth/access_token?client_id=${client_id}&client_secret=${secret_key}&code=${req.params.code}`,
+      headers: {
+          accept: 'application/json'
+      }
+    })
+    res.send({ token: data.data.access_token })
+  }
+  else {
+    res.send({found: false})
+  }
 })
 
 app.get('/check', async(req, res) => {
@@ -100,9 +107,9 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
               name: req.params.name
             },
             logs: {
-              name: `${username} joined the room`,
+              name: `${req.params.name} joined the room`,
               date,
-              from: username
+              from: req.params.name
             }
           }
         })
@@ -130,9 +137,9 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
               name: req.params.name
             },
             logs: {
-              name: `Created Room by ${username}`,
+              name: `Created Room by ${req.params.name}`,
               date,
-              from: username
+              from: req.params.name
             }
           }
         })
@@ -161,9 +168,9 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
               name: req.params.name
             },
             logs: {
-              name: `${username} joined the room`,
+              name: `${req.params.name} joined the room`,
               date,
-              from: username
+              from: req.params.name
             }
           }
         })
@@ -190,9 +197,9 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
               name: req.params.name
             },
             logs: {
-              name: `Created Room by ${username}`,
+              name: `Created Room by ${req.params.name}`,
               date,
-              from: username
+              from: req.params.name
             }
           }
         })
@@ -211,52 +218,23 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
   res.send({ finalData })
 })
 
-app.get('/access-token', (req, res) => {
-
+app.get('/check-user/:token', async (req, res) => {
+  const user = await axios.get('https://api.github.com/user', { headers: { Authorization: 'token ' + req.params.token }} )
+  const isPresent = await User.findOne({ username: user.data.login }).count()
+  res.send({name: user.data.name, username: user.data.login, isPresent: isPresent===1 });
 })
-app.get('/oauth-callback', async(req, res) => {
-  const requestToken = req.query.code
-  
-  axios({
-    method: 'post',
-    url: `https://github.com/login/oauth/access_token?client_id=${client_id}&client_secret=${secret_key}&code=${requestToken}`,
-    // Set the content type header, so that we get the response in JSON
-    headers: {
-         accept: 'application/json'
-    }
-  }).then((response) => {
-    access_token = response.data.access_token
-    res.redirect('/success');
-  })
-});
-
-app.get('/success', function(req, res) {
-  axios({
-    method: 'get',
-    url: `https://api.github.com/user`,
-    headers: {
-      Authorization: 'token ' + access_token
-    }
-  }).then(async(response) => {
-    var name = response.data.name;
-    if(response.data.name == null)
-      name = response.data.login
-    res.redirect(`/get-repos/${response.data.login}/${name}`);
-  })
-});
-
 
 io.on("connection", (socket) => {
 
-  socket.on("create room", async(password, owner, name, username ) => {
+  socket.on("create room", async(password, owner, roomName, username ) => {
     const roomID = generateString(9)
-    const room = new Room({ roomID, password, owner, name })
-    await User.updateOne({ email: owner }, { 
+    const room = new Room({ roomID, password, owner, name: roomName })
+    await User.updateOne({ username: owner }, { 
       $push: {
         rooms: { 
           designation: "Level X",
           roomID, 
-          name
+          name: roomName
         }
       }
     })
@@ -281,19 +259,19 @@ io.on("connection", (socket) => {
     io.emit("Hey", {msg: "Success", activeUsers: 1, roomID })
   });
 
-  socket.on('join', async(roomID, password, email, name ) =>  {
+  socket.on('join', async(roomID, password, username, name ) =>  {
     const room = await Room.findOne({ roomID });
     if(!room)
       io.emit("Hey", {err: "Incorrect room code"})
     else if(password !== room.password)
       io.emit('Hey', {err: "Incorrect password"})
     else{
-      const isBlockedUser = room.blockedUser.find((member) => member.userID === email);
+      const isBlockedUser = room.blockedUser.find((member) => member.userID === username);
       if(isBlockedUser){
         io.emit('Hey', {err: "You have been barred from entering this room."});
         return;
       }
-      const isObjectPresent = room.members.find((member) => member.id === email);
+      const isObjectPresent = room.members.find((member) => member.id === username);
       if(isObjectPresent){
         io.emit('Hey', {err: "You are a member of this room."});
         return;
@@ -306,11 +284,11 @@ io.on("connection", (socket) => {
           $push: {
             members: {
               name, 
-              id: email, 
+              id: username, 
               authLevel: "Level Z"
             },
             logs: {
-              name: `${name} joined the Room`,
+              name: `${username} joined the Room`,
               date,
               from: name
             }
@@ -318,7 +296,7 @@ io.on("connection", (socket) => {
         })
         await socket.join(roomID);
         var sockets = io.in(roomID);
-        await User.updateOne({email }, {
+        await User.updateOne({username }, {
           $push: {
             rooms: {
               roomID, 
@@ -379,7 +357,7 @@ app.post('/signup', async (req, res) => {
       res.status(200).json({ message: "Success"});
   }
   catch(err){
-      res.status(200).json({ message: "Email already exists"});
+      res.status(200).json({ message: "Username already exists"});
   }
 })
 
@@ -450,9 +428,9 @@ app.post('/addData', async(req, res) => {
   }
 })
 
-app.get('/getPendingData/:id/:email', async (req, res) => {
+app.get('/getPendingData/:id/:username', async (req, res) => {
   const data = await Room.findOne({ roomID: req.params.id }).lean();
-  const user = await data.members.filter((member) => member.id === req.params.email)
+  const user = await data.members.filter((member) => member.id === req.params.username)
   data.authLevel = user.authLevel
   res.send({ data, authLevel: user[0].authLevel})
 })
@@ -528,7 +506,7 @@ app.post('/nextLevel', async (req, res) => {
         logs: {
           name: `Moved ${req.body.name} from Pending to Active task`,
           date: req.body.createdAt,
-          from: req.body.createdBy
+          from: req.body.from
         }
       }
     })
@@ -552,7 +530,7 @@ app.post('/nextLevel', async (req, res) => {
         logs: {
           name: `Moved ${req.body.name} from Active to Completed task`,
           date: req.body.createdAt,
-          from: req.body.createdBy
+          from: req.body.from
         }
       }
     })
@@ -576,7 +554,7 @@ app.post('/addChat', async (req, res) => {
     var emails = [];
     const room = await Room.findOne({ roomID: req.body.id });
     emails.push(room.members.map((member) => member.id ))
-    emails = await emails[0].filter((member) => member !== req.body.fromEmail )
+    emails = await emails[0].filter((member) => member !== req.body.fromUserName )
     let transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -587,10 +565,10 @@ app.post('/addChat', async (req, res) => {
     let info = {
       from: process.env.EMAIL, 
       to: emails, 
-      subject: `Received Important Message from ${req.body.fromName} in ${room.name}`, 
+      subject: `Received Important Message from ${req.body.fromUserName} in ${room.name}`, 
       text: "Hello world", 
       html: `<div><p><b>You have recieived high priority message in ${room.name}.</b></p>
-      <div> <p><b>${req.body.fromName} : </b> ${req.body.text}</p>
+      <div> <p><b>${req.body.fromUserName} : </b> ${req.body.text}</p>
       To view the message <a href="https://collberx.vercel.app/">Click Here!</a>
       </div>`, 
     };
@@ -605,20 +583,20 @@ app.post('/addChat', async (req, res) => {
 })
 
 app.get('/getProjects/:username', async (req, res) => {
-  // console.log(req.params.username)
-  const user = await User.findOne({ username: req.params.username })
-  var arr = [];
+  if(req.params.username!==null){
+    const user = await User.findOne({ username: req.params.username })
+    var arr = [];
+    for(var i=0; i<user.rooms.length;i++){
+      arr[i] = user.rooms[i].roomID
+    }
+    const room = await Room.find({ roomID: arr }).lean();
 
-  for(var i=0; i<user.rooms.length;i++){
-    arr[i] = user.rooms[i].roomID
+    for(var i=0; i<room.length; i++){
+      room[i].data = await room[i].members.filter((user) => user.id === req.params.username)[0]
+    }
+
+    res.send({room })
   }
-  const room = await Room.find({ roomID: arr }).lean();
-
-  for(var i=0; i<room.length; i++){
-    room[i].data = await room[i].members.filter((user) => user.id === req.params.username)[0]
-  }
-
-  res.send({room })
 })
 
 app.post('/changeAuth', async(req, res) => {
@@ -737,7 +715,7 @@ app.post('/blockUser/:userID/:roomID', async (req, res) => {
     }
   })
 
-  await User.updateOne({email: req.params.userID}, {
+  await User.updateOne({username: req.params.userID}, {
     $pull: {
       rooms: {
         roomID: req.params.roomID
@@ -763,7 +741,7 @@ app.post('/removeUser/:userID/:roomID', async (req, res) => {
     }
   })
 
-  await User.updateOne({email: req.params.userID}, {
+  await User.updateOne({username: req.params.userID}, {
     $pull: {
       rooms: {
         roomID: req.params.roomID
