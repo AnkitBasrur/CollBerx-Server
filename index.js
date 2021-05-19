@@ -430,9 +430,19 @@ app.post('/addData', async(req, res) => {
 
 app.get('/getPendingData/:id/:username', async (req, res) => {
   const data = await Room.findOne({ roomID: req.params.id }).lean();
-  const user = await data.members.filter((member) => member.id === req.params.username)
-  data.authLevel = user.authLevel
-  res.send({ data, authLevel: user[0].authLevel})
+  if(!data){
+    res.send({msg: "No group found"})
+  }
+  else{
+    const user = await data.members.filter((member) => member.id === req.params.username)
+    if(user.length == 0){
+      res.send({ data, authLevel: "Level Z"})
+    }
+    else{
+      data.authLevel = user.authLevel
+      res.send({ data, authLevel: user[0].authLevel})
+    }
+  }
 })
 
 app.post('/removeData', async (req, res) => {
@@ -725,11 +735,11 @@ app.post('/blockUser/:userID/:roomID', async (req, res) => {
   
   res.send();
 })
-app.post('/removeUser/:userID/:roomID', async (req, res) => {
+app.post('/removeUser/:userID/:roomID/:log', async (req, res) => {
   await Room.updateOne({ roomID: req.params.roomID }, { 
     $push: {
       logs: {
-        name: `Removed ${req.params.userID}`,
+        name: req.params.log,
         date: req.body.date,
         from: req.body.from
       }
