@@ -101,6 +101,9 @@ const RoomSchema = mongoose.Schema({
         type: String,
         required: true
     },
+    isGitRepo: {
+        type: Boolean
+    },
     members: [MemberSchema],
     blockedUser: [BlockedUserSchema],
     pending: [TaskSchema],

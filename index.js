@@ -116,7 +116,7 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
       }
       else{
         const roomID = sourceID
-        const room = new Room({ roomID, password: `${fork.data.source.owner.login}123`, owner: fork.data.source.owner.login, name: repos[i].name })
+        const room = new Room({ roomID, password: `${fork.data.source.owner.login}123`, owner: fork.data.source.owner.login, name: repos[i].name, isGitRepo:true })
         await User.updateOne({ username }, { 
           $push: {
             rooms: { 
@@ -176,7 +176,7 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
         })
       }
       else{
-        const room = new Room({ roomID, password: `${username}123`, owner: username, name: repos[i].name })
+        const room = new Room({ roomID, password: `${username}123`, owner: username, name: repos[i].name, isGitRepo:true })
         await User.updateOne({ username }, { 
           $push: {
             rooms: { 
@@ -228,13 +228,13 @@ io.on("connection", (socket) => {
 
   socket.on("create room", async(password, owner, roomName, username ) => {
     const roomID = generateString(9)
-    const room = new Room({ roomID, password, owner, name: roomName })
+    const room = new Room({ roomID, password, owner, name: roomName, isGitRepo: false })
     await User.updateOne({ username: owner }, { 
       $push: {
         rooms: { 
           designation: "Level X",
           roomID, 
-          name: roomName
+          name: roomName,
         }
       }
     })
@@ -352,7 +352,7 @@ app.post('/signup', async (req, res) => {
   const {name, username, password} = req.body;
 
   try{
-      const user = new User({ name, username, password });
+      const user = new User({ name, username, password, isGitUser: false });
       await user.save();
       res.status(200).json({ message: "Success"});
   }
@@ -600,12 +600,14 @@ app.get('/getProjects/:username', async (req, res) => {
       arr[i] = user.rooms[i].roomID
     }
     const room = await Room.find({ roomID: arr }).lean();
-
+    var gitCount = 0;
+    
     for(var i=0; i<room.length; i++){
       room[i].data = await room[i].members.filter((user) => user.id === req.params.username)[0]
+      if(room[i].isGitRepo)
+        gitCount++
     }
-
-    res.send({room })
+    res.send({room, gitCount })
   }
 })
 
