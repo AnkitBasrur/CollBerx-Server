@@ -9,8 +9,8 @@ const server = require('http').Server(app)
 const Room = require('./schema/Room')
 require('dotenv').config();
 
-const client_id = process.env.CLIENT_ID;
-const secret_key = process.env.SECRET_KEY;
+const client_id = process.env.GITHUB_CLIENT_ID;
+const secret_key = process.env.GITHUB_SECRET_KEY;
 
 const io = require('socket.io')(server)
 
