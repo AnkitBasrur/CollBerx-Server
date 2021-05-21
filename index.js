@@ -7,12 +7,10 @@ const nodemailer = require('nodemailer');
 app.use(cors({origin: '*'}));
 const server = require('http').Server(app)
 const Room = require('./schema/Room')
-const httpServer = require("http").createServer();
 require('dotenv').config();
-const { Octokit } = require("@octokit/core");
 
-const client_id = "d38bd993581d49e7499c";
-const secret_key = "5d52ad86353cb742c4a945a7e7b3599ddcf77eac";
+const client_id = process.env.CLIENT_ID;
+const secret_key = process.env.SECRET_KEY;
 
 const io = require('socket.io')(server)
 
@@ -22,13 +20,14 @@ server.listen(process.env.PORT || 3000, () => {
 const mongoose = require('mongoose');
 const User = require('./schema/User');
 
-const uri = "mongodb+srv://Ankit:ankit007@cluster0.nrn9d.mongodb.net/Task?authSource=admin&replicaSet=atlas-d7vrff-shard-0&w=majority&readPreference=primary&appname=MongoDB%20Compass&retryWrites=true&ssl=true"
+const uri = process.env.MONGO_URL
 mongoose.connect(uri, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 });
 
 const characters ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
 function generateString(length) {
     let result = '';
     const charactersLength = characters.length;
@@ -58,8 +57,8 @@ app.get('/access-token/:code', async(req, res) => {
   }
 })
 
-app.get('/check', async(req, res) => {
-  const data = await axios.get(`https://api.github.com/rate_limit`, { headers: { authorization: `token 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`}})
+app.get('/check/:token', async(req, res) => {
+  const data = await axios.get(`https://api.github.com/rate_limit`, { headers: { authorization: `token ${req.params.token}`}})
   res.json({ data: data.data });
 })
 
