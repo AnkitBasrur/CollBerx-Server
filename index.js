@@ -9,8 +9,8 @@ const server = require('http').Server(app)
 const Room = require('./schema/Room')
 require('dotenv').config();
 
-const client_id = "d38bd993581d49e7499c";
-const secret_key = "5d52ad86353cb742c4a945a7e7b3599ddcf77eac";
+const client_id = process.env.GITHUB_CLIENT_ID;
+const secret_key = process.env.GITHUB_SECRET_KEY;
 
 const io = require('socket.io')(server)
 
@@ -86,7 +86,7 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
       
       sourceID = fork.data.source.id
       const room = await Room.findOne({ roomID: sourceID });
-
+      
       if(room){
         await User.updateOne({ username }, { 
           $push: {
