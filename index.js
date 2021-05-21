@@ -83,9 +83,10 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
     
     if(repos[i].isForked === true){
       const fork = await axios.get(`https://api.github.com/repos/${username}/${repos[i].name}`, { headers: { authorization: `token ${req.params.token}`}})
+      
       sourceID = fork.data.source.id
-
       const room = await Room.findOne({ roomID: sourceID });
+      
       if(room){
         await User.updateOne({ username }, { 
           $push: {
