@@ -205,17 +205,8 @@ app.get('/get-repos/:username/:name/:token', async(req, res) => {
         })
       }
     }
-    var authors = [];
-
-    if(authorsData.data.length > 0){
-      authors.push(authorsData.data.map((curr) => curr.author.login));
-      finalData.push({authors: authors[0], repoName: repos[i].name, sourceID })
-    }
-    else{
-      finalData.push({repoName: repos[i].name })
-    }
   }
-  res.send({ finalData })
+  res.send()
 })
 
 app.get('/check-user/:token', async (req, res) => {
