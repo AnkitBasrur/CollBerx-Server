@@ -348,7 +348,7 @@ app.post('/signup', async (req, res) => {
       res.status(200).json({ message: "Success"});
   }
   catch(err){
-      res.status(200).json({ message: "Username already exists"});
+      res.status(200).json({ message: err});
   }
 })
 
