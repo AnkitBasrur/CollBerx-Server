@@ -14,8 +14,8 @@ const secret_key = process.env.GITHUB_SECRET_KEY;
 
 const io = require('socket.io')(server)
 
-server.listen(process.env.PORT || 3000, () => {
-  console.log(`Server started: http://localhost:3000`)
+server.listen(process.env.PORT || 4000, () => {
+  console.log(`Server started: http://localhost:4000`)
 })
 const mongoose = require('mongoose');
 const User = require('./schema/User');
